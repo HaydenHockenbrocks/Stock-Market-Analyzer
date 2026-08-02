@@ -1,0 +1,41 @@
+-----Stocks-----
+-----AAPL-----
+Average: 7.80%
+Maximum: 15.00%
+Minimum: -3.00%
+-----MSFT-----
+Average: 7.20%
+Maximum: 13.00%
+Minimum: -2.00%
+-----TSLA-----
+Average: 13.40%
+Maximum: 40.00%
+Minimum: -18.00%
+-----GOOGL-----
+Average: 8.80%
+Maximum: 18.00%
+Minimum: -6.00%
+-----AMZN-----
+Average: 11.00%
+Maximum: 22.00%
+Minimum: -10.00%
+-----NVDA-----
+Average: 22.60%
+Maximum: 45.00%
+Minimum: -15.00%
+-----JPM-----
+Average: 4.20%
+Maximum: 10.00%
+Minimum: -8.00%
+-----JNJ-----
+Average: 3.40%
+Maximum: 6.00%
+Minimum: -1.00%
+-----BRK-----
+Average: 6.40%
+Maximum: 9.00%
+Minimum: 2.00%
+-----META-----
+Average: 17.00%
+Maximum: 50.00%
+Minimum: -25.00%
