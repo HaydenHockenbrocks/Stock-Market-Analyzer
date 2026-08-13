@@ -41,8 +41,31 @@ def calculate_metrics(stock_data):
     }
 
 
+#comparison functions
+def compare_to_benchmark(stock_data, period):
+    benchmark = yf.Ticker('VOO').history(period=period)
+    benchmark['Daily Return'] = benchmark['Close'].pct_change()
 
-#Testing
-data = get_stock_data('AAPL', '5y')
-metrics = calculate_metrics(data)
-print(metrics)
+    benchmark_return = total_return(benchmark)
+    benchmark_sharpe = sharpe_ratio(benchmark)
+
+    if benchmark_return > total_return(stock_data):
+        greater_return = False 
+    else:
+        greater_return = True
+
+    if benchmark_sharpe > sharpe_ratio(stock_data):
+        greater_sharpe = False
+    else:
+        greater_sharpe = True
+
+    return {
+        'Benchmark Total Return' : benchmark_return,
+        'Benchmark Sharpe Ratio' : benchmark_sharpe,
+        'Stock Total Return' : total_return(stock_data),
+        'Stock Sharpe Ratio' : sharpe_ratio(stock_data),
+        'Beats Benchmark Return' : greater_return,
+        'Beats Sharpe Ratio' : greater_sharpe
+    }
+
+
