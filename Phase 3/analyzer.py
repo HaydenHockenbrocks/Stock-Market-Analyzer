@@ -6,6 +6,7 @@ import pandas as pd
 def get_stock_data(ticker, period):
     stock_data = yf.Ticker(ticker).history(period=period)
     stock_data['Daily Return'] = stock_data['Close'].pct_change()
+    stock_data['Cumulative'] = (1 + stock_data['Daily Return']).cumprod()
     return stock_data
 
 #calculation functions
@@ -67,5 +68,4 @@ def compare_to_benchmark(stock_data, period):
         'Beats Benchmark Return' : greater_return,
         'Beats Sharpe Ratio' : greater_sharpe
     }
-
 
