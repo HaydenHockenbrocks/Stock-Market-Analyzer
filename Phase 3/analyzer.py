@@ -14,6 +14,9 @@ def total_return(stock_data):
     returns = (stock_data['Close'].iloc[-1] - stock_data['Close'].iloc[0]) / stock_data['Close'].iloc[0]
     return returns * 100
 
+def cumulative(stock_data):
+    return (1 + stock_data['Daily Return']).cumprod()
+
 def avg_daily_return(stock_data):
     return stock_data['Daily Return'].mean() * 100
 

@@ -5,6 +5,8 @@ from analyzer import *
 
 #Global Variables
 stocks = ['AAPL', 'VTI', 'NVDA', 'JPM', 'JNJ']
+line_graphs = ['Cumulative']
+bar_graphs = ['Volatility', 'Max Drawdown']
 period = '5y'
 stock_data = {}
 stock_metrics= {}
@@ -30,12 +32,31 @@ Greater Sharpe Ratio Than Benchmark: {comparison[ticker]['Beats Sharpe Ratio']}
 ''')
 
 #creating and putputing graphs
-for ticker in stocks:
-    plt.plot(stock_data[ticker]['Cumulative'].index, stock_data[ticker]['Cumulative'], label=ticker)
+def create_line_graphs():
+    for name in line_graphs:
+        for ticker in stocks:
+            plt.plot(stock_data[ticker][name].index, stock_data[ticker][name], label=ticker)
 
-plt.title('Cumulative Returns Comparison')
-plt.xlabel('Date')
-plt.ylabel('Cumulative Return')
-plt.legend()
-plt.savefig('outputs/cumulative_returns.png')
+        plt.title(name + ' Comparison')
+        plt.xlabel('Date')
+        plt.ylabel(name)
+        plt.legend()
+        plt.savefig('outputs/' + name + '_line_graph.png')
+        plt.clf()
+    
+
+def create_bar_graphs():
+    for name in bar_graphs:
+        for ticker in stocks:
+            plt.bar(ticker, stock_metrics[ticker][name])
+        plt.title(name + ' Comparison')
+        plt.xlabel('Stock')
+        plt.ylabel(name + ' %')
+        plt.savefig('outputs/' + name + 'bar_graph.png')
+        plt.clf()
+
+
+create_bar_graphs()
+create_line_graphs()
+
 
