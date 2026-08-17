@@ -2,6 +2,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import pandas as pd
 from analyzer import *
+from backtester import *
 
 #Global Variables
 stocks = ['AAPL', 'VTI', 'NVDA', 'JPM', 'JNJ']
@@ -56,7 +57,11 @@ def create_bar_graphs():
         plt.clf()
 
 
-create_bar_graphs()
-create_line_graphs()
+#testing
+#create_bar_graphs()
+#create_line_graphs()
+data = get_stock_data('AAPL', '5y')
+data = generate_signals(data)
+print(data[['Close', '50MA', '200MA', 'Signal']].tail(20))
 
 

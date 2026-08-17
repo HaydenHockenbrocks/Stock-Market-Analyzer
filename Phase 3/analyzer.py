@@ -2,6 +2,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 import pandas as pd
 
+
 #gathering data to start
 def get_stock_data(ticker, period):
     stock_data = yf.Ticker(ticker).history(period=period)
