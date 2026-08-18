@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from analyzer import *
 from backtester import *
+from report import *
+
+
+
 
 #Global Variables
 stocks = ['AAPL', 'VTI', 'NVDA', 'JPM', 'JNJ']
@@ -63,6 +67,9 @@ def create_bar_graphs():
 #run setup(dont touch)
 for ticker in stocks:
     stock_data[ticker] = run_backtester(stock_data[ticker])
+backtest_summary = backtester_summary(stock_data, stocks)
+
+
 #testing
 #create_bar_graphs()
 #create_line_graphs()
@@ -73,5 +80,6 @@ for ticker in stocks:
     stock_data[ticker] = run_backtester(stock_data[ticker])
 print(stock_data)
 '''
-print(backtester_summary(stock_data, stocks))
+#print(backtester_summary(stock_data, stocks))
+generate_report(stock_metrics, comparison, backtest_summary, stocks)
 
