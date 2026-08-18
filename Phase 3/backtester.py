@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from analyzer import *
 
-#defining support funstions
+
+
+#defining support functions
 def moving_average_fifty(stock_data):
     return stock_data['Close'].rolling(window=50).mean()
 

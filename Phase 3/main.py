@@ -70,16 +70,6 @@ for ticker in stocks:
 backtest_summary = backtester_summary(stock_data, stocks)
 
 
-#testing
-#create_bar_graphs()
-#create_line_graphs()
-#data = get_stock_data('AAPL', '5y')
-#data = generate_signals(data)
-#print(data[['Close', '50MA', '200MA', 'Signal']].tail(20))
-''' for ticker in stocks:
-    stock_data[ticker] = run_backtester(stock_data[ticker])
-print(stock_data)
-'''
-#print(backtester_summary(stock_data, stocks))
+#Main Calling functions
 generate_report(stock_metrics, comparison, backtest_summary, stocks)
 
