@@ -20,8 +20,9 @@ for ticker in stocks:
     comparison[ticker] = compare_to_benchmark(stock_data[ticker], period)
 
 #print results
-for ticker in stocks:
-    print(f'''
+def print_results():
+    for ticker in stocks:
+        print(f'''
 ----------{ticker}----------
 Total Return: {stock_metrics[ticker]['Total Return']:.2f}
 Avg Daily Return: {stock_metrics[ticker]['Avg Daily Return']:.2f}
@@ -31,6 +32,7 @@ Max Drawdown: {stock_metrics[ticker]['Max Drawdown']:.2f}
 Greater Benchmark Return: {comparison[ticker]['Beats Benchmark Return']}
 Greater Sharpe Ratio Than Benchmark: {comparison[ticker]['Beats Sharpe Ratio']}
 ''')
+
 
 #creating and putputing graphs
 def create_line_graphs():
@@ -57,11 +59,19 @@ def create_bar_graphs():
         plt.clf()
 
 
+
+#run setup(dont touch)
+for ticker in stocks:
+    stock_data[ticker] = run_backtester(stock_data[ticker])
 #testing
 #create_bar_graphs()
 #create_line_graphs()
-data = get_stock_data('AAPL', '5y')
-data = generate_signals(data)
-print(data[['Close', '50MA', '200MA', 'Signal']].tail(20))
-
+#data = get_stock_data('AAPL', '5y')
+#data = generate_signals(data)
+#print(data[['Close', '50MA', '200MA', 'Signal']].tail(20))
+''' for ticker in stocks:
+    stock_data[ticker] = run_backtester(stock_data[ticker])
+print(stock_data)
+'''
+print(backtester_summary(stock_data, stocks))
 
