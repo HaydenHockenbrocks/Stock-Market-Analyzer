@@ -1,13 +1,12 @@
 import warnings
 
 import numpy as np
-import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
 # Accelerate BLAS on macOS raises spurious matmul warnings during LogisticRegression
-# fitting. Verified via np.isfinite that every scaled training slice is finite,
+# fitting. Verified with np.isfinite that every scaled training slice is finite,
 # so these are a platform artifact rather than a data problem.
 warnings.filterwarnings('ignore', category=RuntimeWarning, module='sklearn')
 
@@ -15,7 +14,6 @@ FEATURES = ['50MA_ratio', '200MA_ratio', '5day_momentum',
             '10day_momentum', '10day_volatility', 'volume_change']
 
 
-# builds all the input variables the models learn from
 def build_features(stock_data):
     df = stock_data.copy()
 
@@ -31,12 +29,16 @@ def build_features(stock_data):
     df['10day_volatility'] = df['Daily Return'].rolling(10).std()
     df['volume_change'] = df['Volume'].pct_change()
 
-    # the final row has no "tomorrow" to compare against, and NaN > x silently
-    # evaluates False rather than NaN, so drop it before labelling
-    df = df.iloc[:-1].copy()
+    # Target is computed BEFORE truncating, so shift(-1) can still see the real
+    # next-day close for every row that survives. Order matters here: truncating
+    # first would leave the new last row unable to see its own tomorrow, and
+    # NaN > x evaluates False rather than NaN, so it would be silently
+    # mislabelled 0 instead of dropped.
+    df['Target'] = (df['Close'].shift(-1) > df['Close'])
 
-    # target: 1 if tomorrow closes higher, 0 if not
-    df['Target'] = (df['Close'].shift(-1) > df['Close']).astype(int)
+    # the true final row has no tomorrow at all; drop it rather than label it
+    df = df.iloc[:-1].copy()
+    df['Target'] = df['Target'].astype(int)
 
     # zero-volume days produce inf on pct_change, and dropna doesn't catch inf
     df = df.replace([np.inf, -np.inf], np.nan)
@@ -45,7 +47,6 @@ def build_features(stock_data):
     return df
 
 
-# fits both models on a given training slice
 def fit_models(X_train, y_train):
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
@@ -59,8 +60,9 @@ def fit_models(X_train, y_train):
     return lr_model, rf_model, scaler
 
 
-# expanding-window walk-forward: train only on the past, predict the near
-# future, step forward. Every prediction returned is genuinely out-of-sample.
+# Expanding-window walk-forward: train only on the past, predict the near future,
+# step forward. The scaler is re-fit on each training slice and only .transform()s
+# the future block, so no future information reaches the model in any form.
 def walk_forward_predict(df, retrain_every=10, initial_train=500):
     X = df[FEATURES]
     y = df['Target']
@@ -85,7 +87,6 @@ def walk_forward_predict(df, retrain_every=10, initial_train=500):
     return lr_preds, rf_preds, pred_index
 
 
-# backtests the walk-forward signals against buy-and-hold over the same window
 def run_walk_forward_backtest(df, retrain_every=10, initial_train=500):
     lr_preds, rf_preds, pred_index = walk_forward_predict(df, retrain_every, initial_train)
 
@@ -104,13 +105,13 @@ def run_walk_forward_backtest(df, retrain_every=10, initial_train=500):
     return wf
 
 
-# runs the full ML pipeline for one stock and returns a flat summary dict.
-# This is the function main.py calls; nothing else here executes on import.
+# Runs the full ML pipeline for one stock and returns a flat summary.
+# start_date is returned so main.py can trim the other strategies to the same
+# window, keeping every cumulative return comparable.
 def ml_summary(stock_data, retrain_every=10, initial_train=500):
     df = build_features(stock_data)
 
     if len(df) <= initial_train:
-        # not enough history to train and still have days left to predict
         return None
 
     wf = run_walk_forward_backtest(df, retrain_every, initial_train)
@@ -122,7 +123,8 @@ def ml_summary(stock_data, retrain_every=10, initial_train=500):
         'lr_exposure': wf['lr_signal'].mean(),
         'rf_exposure': wf['rf_signal'].mean(),
         'base_rate': wf['Target'].mean(),
-        'n_days': len(wf),
+        'n_days': int(wf['lr_return'].notna().sum()),
+        'start_date': wf.index[0],
     }
 
 
@@ -132,9 +134,10 @@ if __name__ == '__main__':
     data = get_stock_data('AAPL', '5y')
     results = ml_summary(data)
 
-    print(f"Walk-forward window: {results['n_days']} days")
+    print(f"Walk-forward window: {results['n_days']} days "
+          f"starting {results['start_date'].date()}")
     print(f"Actual up days:      {results['base_rate']:.1%}\n")
-    print(f"Buy and hold: {results['buy_hold_return']:.2f}x")
+    print(f"Buy and hold:  {results['buy_hold_return']:.2f}x")
     print(f"Random forest: {results['rf_return']:.2f}x  "
           f"(in market {results['rf_exposure']:.1%} of days)")
     print(f"Logistic reg:  {results['lr_return']:.2f}x  "

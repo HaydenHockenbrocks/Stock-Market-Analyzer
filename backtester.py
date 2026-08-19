@@ -1,7 +1,3 @@
-import pandas as pd
-
-
-# support functions
 def moving_average_fifty(stock_data):
     return stock_data['Close'].rolling(window=50).mean()
 
@@ -35,24 +31,40 @@ def run_backtester(stock_data):
     return stock_data
 
 
-# compares strategy against buy-and-hold over the same window.
-# The first ~200 rows are excluded because the 200MA doesn't exist yet, which
-# would otherwise force the strategy flat while buy-and-hold stays invested.
-def backtester_summary(stock_data, stocks):
+# Compares the crossover strategy against buy-and-hold over one shared window.
+#
+# Rows before the 200MA exists are always excluded: during warm-up the signal is
+# forced to 0, so the strategy would sit in cash while buy-and-hold stays
+# invested — a handicap imposed by data availability, not by any decision the
+# strategy made.
+#
+# start_date optionally trims further. main.py passes the ML walk-forward start
+# so that all four strategies are measured over identical calendar periods;
+# comparing a 4.2-year compounded multiple against a 2.2-year one is meaningless.
+def summarize_strategy(df, start_date=None):
+    valid = df[df['200MA'].notna()]
+
+    if start_date is not None:
+        valid = valid[valid.index >= start_date]
+
+    strategy = (1 + valid['Strategy Return']).cumprod().iloc[-1]
+    buy_hold = (1 + valid['Daily Return']).cumprod().iloc[-1]
+
+    return {
+        'Strategy Return': strategy,
+        'No Strategy Return': buy_hold,
+        'Good Strategy': strategy > buy_hold,
+        'Exposure': valid['Signal'].mean(),
+        'n_days': len(valid),
+        'start_date': valid.index[0],
+    }
+
+
+def backtester_summary(stock_data, stocks, start_dates=None):
     final_data = {}
 
     for stock in stocks:
-        df = stock_data[stock]
-        valid = df[df['200MA'].notna()]
-
-        strategy = (1 + valid['Strategy Return']).cumprod().iloc[-1]
-        buy_hold = (1 + valid['Daily Return']).cumprod().iloc[-1]
-
-        final_data[stock] = {
-            'Strategy Return': strategy,
-            'No Strategy Return': buy_hold,
-            'Good Strategy': strategy > buy_hold,
-            'Exposure': valid['Signal'].mean(),
-        }
+        start = start_dates.get(stock) if start_dates else None
+        final_data[stock] = summarize_strategy(stock_data[stock], start)
 
     return final_data

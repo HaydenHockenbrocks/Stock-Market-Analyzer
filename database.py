@@ -6,7 +6,6 @@ import pandas as pd
 DB_PATH = 'stock_data.db'
 
 
-# creates the three tables if they don't already exist
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -29,13 +28,15 @@ def init_db():
             ticker TEXT NOT NULL,
             run_date TEXT NOT NULL,
             total_return REAL,
-            volatility REAL,
+            daily_volatility REAL,
             sharpe_ratio REAL,
             max_drawdown REAL,
             PRIMARY KEY (ticker, run_date)
         )
     ''')
 
+    # n_days and window_start make the measurement period explicit, so a
+    # leaderboard can't silently rank returns computed over different windows
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS backtest_results (
             ticker TEXT NOT NULL,
@@ -43,6 +44,8 @@ def init_db():
             strategy_name TEXT NOT NULL,
             cumulative_return REAL,
             pct_days_in_market REAL,
+            n_days INTEGER,
+            window_start TEXT,
             PRIMARY KEY (ticker, run_date, strategy_name)
         )
     ''')
@@ -51,7 +54,6 @@ def init_db():
     conn.close()
 
 
-# writes one row per trading day into the prices table
 def save_prices(ticker, stock_data):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -69,7 +71,6 @@ def save_prices(ticker, stock_data):
     conn.close()
 
 
-# reads prices back out, shaped like get_stock_data's output
 def load_prices(ticker, start_date=None):
     conn = sqlite3.connect(DB_PATH)
 
@@ -95,7 +96,6 @@ def load_prices(ticker, start_date=None):
     return df
 
 
-# how many rows we already hold for a ticker
 def price_row_count(ticker):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -105,7 +105,6 @@ def price_row_count(ticker):
     return count
 
 
-# most recent stored date for a ticker, or None if we hold nothing
 def latest_stored_date(ticker):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -129,7 +128,6 @@ def has_fresh_data(ticker, min_rows=200, max_age_days=5):
     return age <= timedelta(days=max_age_days)
 
 
-# one row per ticker per analysis run
 def save_metrics(ticker, metrics, run_date=None):
     if run_date is None:
         run_date = dt_date.today().strftime('%Y-%m-%d')
@@ -139,7 +137,7 @@ def save_metrics(ticker, metrics, run_date=None):
 
     cursor.execute('''
         INSERT OR REPLACE INTO metrics
-        (ticker, run_date, total_return, volatility, sharpe_ratio, max_drawdown)
+        (ticker, run_date, total_return, daily_volatility, sharpe_ratio, max_drawdown)
         VALUES (?, ?, ?, ?, ?, ?)
     ''', (
         ticker,
@@ -154,20 +152,25 @@ def save_metrics(ticker, metrics, run_date=None):
     conn.close()
 
 
-# one row per strategy per ticker per run
 def save_backtest_result(ticker, strategy_name, cumulative_return,
-                         pct_days_in_market, run_date=None):
+                         pct_days_in_market, n_days, window_start,
+                         run_date=None):
     if run_date is None:
         run_date = dt_date.today().strftime('%Y-%m-%d')
+
+    if hasattr(window_start, 'strftime'):
+        window_start = window_start.strftime('%Y-%m-%d')
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     cursor.execute('''
         INSERT OR REPLACE INTO backtest_results
-        (ticker, run_date, strategy_name, cumulative_return, pct_days_in_market)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (ticker, run_date, strategy_name, cumulative_return, pct_days_in_market))
+        (ticker, run_date, strategy_name, cumulative_return,
+         pct_days_in_market, n_days, window_start)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (ticker, run_date, strategy_name, cumulative_return,
+          pct_days_in_market, n_days, window_start))
 
     conn.commit()
     conn.close()
@@ -179,7 +182,8 @@ def strategy_leaderboard(ticker):
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT strategy_name, cumulative_return, pct_days_in_market
+        SELECT strategy_name, cumulative_return, pct_days_in_market,
+               n_days, window_start
         FROM backtest_results
         WHERE ticker = ?
           AND run_date = (SELECT MAX(run_date) FROM backtest_results WHERE ticker = ?)
@@ -210,3 +214,21 @@ def strategy_averages():
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+
+# sanity check: every strategy for a ticker should cover the same window
+def window_consistency_check(ticker):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT COUNT(DISTINCT n_days), COUNT(DISTINCT window_start)
+        FROM backtest_results
+        WHERE ticker = ?
+          AND run_date = (SELECT MAX(run_date) FROM backtest_results WHERE ticker = ?)
+    ''', (ticker, ticker))
+
+    distinct_lengths, distinct_starts = cursor.fetchone()
+    conn.close()
+
+    return distinct_lengths <= 1 and distinct_starts <= 1
